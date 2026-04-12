@@ -1278,8 +1278,11 @@ track_list.add_controller(track_list_context);
  let state_clone = state.clone();
  let play_btn_clone = play_btn.clone();
  let mini_view_btn_clone = mini_view_btn.clone();
+ let viz_mode_btn_clone = viz_mode_btn.clone();
+ let viz_area_clone = viz_area.clone();
+ let window_clone = window.clone();
 
- key_controller.connect_key_pressed(glib::clone!(@strong pipeline_clone, @strong state_clone, @strong play_btn_clone, @strong mini_view_btn_clone => move |_, key, _, _| {
+ key_controller.connect_key_pressed(glib::clone!(@strong pipeline_clone, @strong state_clone, @strong play_btn_clone, @strong mini_view_btn_clone, @strong viz_mode_btn_clone, @strong viz_area_clone, @strong window_clone => move |_, key, _, _| {
  match key {
  gtk4::gdk::Key::space => {
  let is_playing = state_clone.lock().unwrap().is_playing;
@@ -1325,6 +1328,35 @@ track_list.add_controller(track_list_context);
  gtk4::gdk::Key::d => {
  // Toggle mini view
  mini_view_btn_clone.emit_clicked();
+ Propagation::Stop
+ }
+ gtk4::gdk::Key::v => {
+ // Cycle visualization mode
+ let mut s = state_clone.lock().unwrap();
+ s.viz_mode = (s.viz_mode + 1) % 6;
+ let mode_name = match s.viz_mode {
+ 0 => "Bars",
+ 1 => "Wave",
+ 2 => "Circles",
+ 3 => "Stars",
+ 4 => "Mirror",
+ 5 => "Spectrum",
+ _ => "Bars",
+ };
+ drop(s);
+ viz_mode_btn_clone.set_label(mode_name);
+ viz_area_clone.queue_draw();
+ Propagation::Stop
+ }
+ gtk4::gdk::Key::t => {
+ // Cycle theme
+ let mut s = state_clone.lock().unwrap();
+ s.current_theme = (s.current_theme + 1) % THEMES.len();
+ let theme_idx = s.current_theme;
+ drop(s);
+ apply_theme(theme_idx);
+ viz_area_clone.queue_draw();
+ window_clone.queue_draw();
  Propagation::Stop
  }
  _ => Propagation::Proceed
