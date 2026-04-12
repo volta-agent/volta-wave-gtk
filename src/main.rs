@@ -1,4 +1,4 @@
-use gtk4::{glib, prelude::*, Application, ApplicationWindow, Box, Button, Label, ListBox, ListBoxRow, Orientation, Scale, DrawingArea, Entry, CssProvider, MenuButton, Image, Overlay, EventControllerKey, TreeView, TreeStore, TreeViewColumn, CellRendererText, TreeIter, GestureClick, Popover, Separator, Window};
+use gtk4::{glib, prelude::*, Application, ApplicationWindow, Box, Button, Label, ListBox, ListBoxRow, Orientation, Scale, DrawingArea, Entry, CssProvider, MenuButton, Image, Overlay, EventControllerKey, GestureClick, Popover, Separator, Window};
 use glib::Propagation;
 use gtk4::gdk::Display;
 use gtk4::cairo;
@@ -10,7 +10,6 @@ use serde::Deserialize;
 use anyhow::Result;
 use std::collections::VecDeque;
 use rand::Rng;
-use std::path::PathBuf;
 
 const MUSIC_DIR: &str = "Music";
 const APP_ID: &str = "com.volta-agent.wave-gtk";
@@ -210,7 +209,7 @@ fn build_ui(app: &Application) {
  header_box.append(&mini_view_btn);
  header_box.append(&theme_btn);
 
- // Tab buttons for Library/Queue/Files
+ // Tab buttons for Library/Queue
  let tab_box = Box::builder()
  .orientation(Orientation::Horizontal)
  .spacing(0)
@@ -230,15 +229,8 @@ fn build_ui(app: &Application) {
  .hexpand(true)
  .build();
 
- let files_tab = Button::builder()
- .label("Files")
- .css_classes(vec!["tab-btn".to_string()])
- .hexpand(true)
- .build();
-
  tab_box.append(&library_tab);
  tab_box.append(&queue_tab);
- tab_box.append(&files_tab);
 
  // Search entry
  let search_entry = Entry::builder()
@@ -259,15 +251,6 @@ fn build_ui(app: &Application) {
  let queue_count_label = Label::builder()
  .label("Queue: 0")
  .css_classes(vec!["dim-label".to_string(), "queue-count".to_string()])
- .halign(gtk4::Align::Start)
- .margin_bottom(4)
- .visible(false)
- .build();
-
- // File count label (for file browser)
- let file_count_label = Label::builder()
- .label("")
- .css_classes(vec!["dim-label".to_string(), "file-count".to_string()])
  .halign(gtk4::Align::Start)
  .margin_bottom(4)
  .visible(false)
@@ -384,171 +367,71 @@ fn build_ui(app: &Application) {
 
  queue_controls.append(&clear_queue_btn);
 
- // ========== FILE BROWSER VIEW ==========
- let file_scrolled = gtk4::ScrolledWindow::builder()
- .vexpand(true)
- .hexpand(true)
- .min_content_width(300)
- .css_classes(vec!["track-scroll".to_string()])
- .visible(false)
- .build();
-
- // Tree view for file browser
- let file_tree = TreeView::builder()
- .css_classes(vec!["file-tree".to_string()])
- .headers_visible(false)
- .build();
-
- // Create tree store with columns: name, path, is_file, file_count
- let file_store = TreeStore::new(&[
- glib::types::Type::STRING, // display name
- glib::types::Type::STRING, // full path
- glib::types::Type::BOOL, // is_file
- glib::types::Type::STRING, // file count display
- ]);
-
- // Populate file browser
- populate_file_browser(&file_store);
-
- let col = TreeViewColumn::new();
- let renderer = CellRendererText::new();
- col.pack_start(&renderer, true);
- col.add_attribute(&renderer, "text", 0);
- file_tree.append_column(&col);
-
- let count_col = TreeViewColumn::new();
- let count_renderer = CellRendererText::new();
- count_col.pack_start(&count_renderer, false);
- count_col.add_attribute(&count_renderer, "text", 3);
- file_tree.append_column(&count_col);
-
- file_tree.set_model(Some(&file_store));
- file_tree.expand_all();
-
- file_scrolled.set_child(Some(&file_tree));
-
  sidebar.append(&header_box);
  sidebar.append(&tab_box);
  sidebar.append(&search_entry);
  sidebar.append(&track_count_label);
  sidebar.append(&queue_count_label);
- sidebar.append(&file_count_label);
  sidebar.append(&track_header);
  sidebar.append(&track_scrolled);
  sidebar.append(&queue_scrolled);
- sidebar.append(&file_scrolled);
  sidebar.append(&queue_controls);
  sidebar.append(&playlist_box);
 
  // Tab switching
  let library_tab_clone = library_tab.clone();
  let queue_tab_clone = queue_tab.clone();
- let files_tab_clone = files_tab.clone();
  let track_scrolled_clone = track_scrolled.clone();
  let queue_scrolled_clone = queue_scrolled.clone();
- let file_scrolled_clone = file_scrolled.clone();
  let track_count_label_clone = track_count_label.clone();
  let queue_count_label_clone = queue_count_label.clone();
- let file_count_label_clone = file_count_label.clone();
  let queue_controls_clone = queue_controls.clone();
  let track_header_clone = track_header.clone();
 
  library_tab.connect_clicked(glib::clone!(
  @strong library_tab_clone,
  @strong queue_tab_clone,
- @strong files_tab_clone,
  @strong track_scrolled_clone,
  @strong queue_scrolled_clone,
- @strong file_scrolled_clone,
  @strong track_count_label_clone,
  @strong queue_count_label_clone,
- @strong file_count_label_clone,
  @strong queue_controls_clone,
  @strong track_header_clone => move |_| {
  library_tab_clone.add_css_class("active");
  queue_tab_clone.remove_css_class("active");
- files_tab_clone.remove_css_class("active");
  track_scrolled_clone.set_visible(true);
  queue_scrolled_clone.set_visible(false);
- file_scrolled_clone.set_visible(false);
  track_count_label_clone.set_visible(true);
  queue_count_label_clone.set_visible(false);
- file_count_label_clone.set_visible(false);
  queue_controls_clone.set_visible(false);
  track_header_clone.set_visible(true);
  }));
 
  let library_tab_clone = library_tab.clone();
  let queue_tab_clone = queue_tab.clone();
- let files_tab_clone = files_tab.clone();
  let track_scrolled_clone = track_scrolled.clone();
  let queue_scrolled_clone = queue_scrolled.clone();
- let file_scrolled_clone = file_scrolled.clone();
  let track_count_label_clone = track_count_label.clone();
  let queue_count_label_clone = queue_count_label.clone();
- let file_count_label_clone = file_count_label.clone();
  let queue_controls_clone = queue_controls.clone();
  let track_header_clone = track_header.clone();
 
  queue_tab.connect_clicked(glib::clone!(
  @strong library_tab_clone,
  @strong queue_tab_clone,
- @strong files_tab_clone,
  @strong track_scrolled_clone,
  @strong queue_scrolled_clone,
- @strong file_scrolled_clone,
  @strong track_count_label_clone,
  @strong queue_count_label_clone,
- @strong file_count_label_clone,
  @strong queue_controls_clone,
  @strong track_header_clone => move |_| {
  queue_tab_clone.add_css_class("active");
  library_tab_clone.remove_css_class("active");
- files_tab_clone.remove_css_class("active");
  queue_scrolled_clone.set_visible(true);
  track_scrolled_clone.set_visible(false);
- file_scrolled_clone.set_visible(false);
  queue_count_label_clone.set_visible(true);
  track_count_label_clone.set_visible(false);
- file_count_label_clone.set_visible(false);
  queue_controls_clone.set_visible(true);
- track_header_clone.set_visible(false);
- }));
-
- let library_tab_clone = library_tab.clone();
- let queue_tab_clone = queue_tab.clone();
- let files_tab_clone = files_tab.clone();
- let track_scrolled_clone = track_scrolled.clone();
- let queue_scrolled_clone = queue_scrolled.clone();
- let file_scrolled_clone = file_scrolled.clone();
- let track_count_label_clone = track_count_label.clone();
- let queue_count_label_clone = queue_count_label.clone();
- let file_count_label_clone = file_count_label.clone();
- let queue_controls_clone = queue_controls.clone();
- let track_header_clone = track_header.clone();
-
- files_tab.connect_clicked(glib::clone!(
- @strong library_tab_clone,
- @strong queue_tab_clone,
- @strong files_tab_clone,
- @strong track_scrolled_clone,
- @strong queue_scrolled_clone,
- @strong file_scrolled_clone,
- @strong track_count_label_clone,
- @strong queue_count_label_clone,
- @strong file_count_label_clone,
- @strong queue_controls_clone,
- @strong track_header_clone => move |_| {
- files_tab_clone.add_css_class("active");
- library_tab_clone.remove_css_class("active");
- queue_tab_clone.remove_css_class("active");
- file_scrolled_clone.set_visible(true);
- track_scrolled_clone.set_visible(false);
- queue_scrolled_clone.set_visible(false);
- file_count_label_clone.set_visible(true);
- track_count_label_clone.set_visible(false);
- queue_count_label_clone.set_visible(false);
- queue_controls_clone.set_visible(false);
  track_header_clone.set_visible(false);
  }));
 
@@ -867,78 +750,7 @@ fn build_ui(app: &Application) {
  }
  }));
  
- track_list.add_controller(track_list_context);
-
- // ========== CONTEXT MENU FOR FILE BROWSER ==========
- let file_tree_for_context = file_tree.clone();
- let file_store_for_context = file_store.clone();
- let state_for_file_context = state.clone();
- let track_list_for_file_context = track_list.clone();
- let track_rows_for_file_context = track_rows.clone();
- let track_count_label_for_file_context = track_count_label.clone();
- 
- let file_tree_context = GestureClick::new();
- file_tree_context.set_button(gtk4::gdk::BUTTON_SECONDARY);
- 
- file_tree_context.connect_pressed(glib::clone!(
- @strong file_tree_for_context,
- @strong file_store_for_context,
- @strong state_for_file_context,
- @strong track_list_for_file_context,
- @strong track_rows_for_file_context,
- @strong track_count_label_for_file_context => move |_, _, x, y| {
- if let Some((Some(path), _, _, _)) = file_tree_for_context.path_at_pos(x as i32, y as i32) {
- if let Some(iter) = file_store_for_context.iter(&path) {
- let is_file: bool = file_store_for_context.get_value(&iter, 2).get().unwrap_or(false);
- let file_path: String = file_store_for_context.get_value(&iter, 1).get().unwrap_or_default();
- 
- show_file_context_menu(
- &file_tree_for_context,
- is_file,
- &file_path,
- state_for_file_context.clone(),
- track_list_for_file_context.clone(),
- track_rows_for_file_context.clone(),
- track_count_label_for_file_context.clone(),
- );
- }
- }
- }));
- 
- file_tree.add_controller(file_tree_context);
-
- // ========== DOUBLE-CLICK ON FILE BROWSER ==========
- let file_tree_for_double = file_tree.clone();
- let file_store_for_double = file_store.clone();
- let state_for_double = state.clone();
- let track_list_for_double = track_list.clone();
- let track_rows_for_double = track_rows.clone();
- let track_count_label_for_double = track_count_label.clone();
- let pipeline_for_double = pipeline.clone();
- 
- file_tree.connect_row_activated(glib::clone!(
- @strong file_store_for_double,
- @strong state_for_double,
- @strong track_list_for_double,
- @strong track_rows_for_double,
- @strong track_count_label_for_double,
- @strong pipeline_for_double => move |_, path, _| {
- if let Some(iter) = file_store_for_double.iter(path) {
- let is_file: bool = file_store_for_double.get_value(&iter, 2).get().unwrap_or(false);
- let file_path: String = file_store_for_double.get_value(&iter, 1).get().unwrap_or_default();
- 
- if is_file {
- add_file_and_play(
- &file_path,
- state_for_double.clone(),
- track_list_for_double.clone(),
- track_rows_for_double.clone(),
- track_count_label_for_double.clone(),
- pipeline_for_double.clone(),
- );
- }
- }
- }));
+track_list.add_controller(track_list_context);
 
  // ========== CONNECT SIGNALS ==========
  
@@ -1873,162 +1685,6 @@ fn show_track_context_menu(
  popover.popup();
 }
 
-fn show_file_context_menu(
- tree_view: &TreeView,
- is_file: bool,
- file_path: &str,
- state: Arc<Mutex<AppState>>,
- track_list: ListBox,
- track_rows: Arc<Mutex<Vec<ListBoxRow>>>,
- track_count_label: Label,
-) {
- let popover = Popover::new();
- let vbox = Box::builder()
- .orientation(Orientation::Vertical)
- .spacing(2)
- .margin_top(4)
- .margin_bottom(4)
- .margin_start(4)
- .margin_end(4)
- .build();
-
- if is_file {
- // Add to Library
- let add_lib_btn = Button::builder()
- .label("Add to Library")
- .css_classes(vec!["flat".to_string(), "context-btn".to_string()])
- .build();
- 
- let state_clone = state.clone();
- let track_list_clone = track_list.clone();
- let track_rows_clone = track_rows.clone();
- let track_count_label_clone = track_count_label.clone();
- let path_clone = file_path.to_string();
- let popover_clone = popover.clone();
- 
- add_lib_btn.connect_clicked(glib::clone!(@strong state_clone, @strong track_list_clone, @strong track_rows_clone, @strong track_count_label_clone, @strong path_clone, @strong popover_clone => move |_| {
- let track = create_track_from_path(&path_clone);
- let mut s = state_clone.lock().unwrap();
- s.tracks.push(track.clone());
- 
- let row = create_track_row(&track);
- track_list_clone.append(&row);
- track_rows_clone.lock().unwrap().push(row);
- 
- let count = s.tracks.len();
- drop(s);
- track_count_label_clone.set_label(&format!("{} tracks", count));
- popover_clone.popdown();
- }));
- 
- vbox.append(&add_lib_btn);
-
- // Add to Queue
- let add_queue_btn = Button::builder()
- .label("Add to Queue")
- .css_classes(vec!["flat".to_string(), "context-btn".to_string()])
- .build();
- 
- let state_clone = state.clone();
- let path_clone = file_path.to_string();
- let popover_clone = popover.clone();
- 
- add_queue_btn.connect_clicked(glib::clone!(@strong state_clone, @strong path_clone, @strong popover_clone => move |_| {
- let track = create_track_from_path(&path_clone);
- let mut s = state_clone.lock().unwrap();
- let idx = s.tracks.len();
- s.tracks.push(track);
- s.queue.push_back(idx);
- popover_clone.popdown();
- }));
- 
- vbox.append(&add_queue_btn);
-
- // Play Now
- let play_btn = Button::builder()
- .label("Play Now")
- .css_classes(vec!["flat".to_string(), "context-btn".to_string()])
- .build();
- 
- let state_clone = state.clone();
- let path_clone = file_path.to_string();
- let popover_clone = popover.clone();
- 
- play_btn.connect_clicked(glib::clone!(@strong state_clone, @strong path_clone, @strong popover_clone => move |_| {
- // TODO: Play the file directly
- // For now, just add and play
- let track = create_track_from_path(&path_clone);
- let mut s = state_clone.lock().unwrap();
- let idx = s.tracks.len();
- s.tracks.push(track.clone());
- s.current_index = Some(idx);
- drop(s);
- popover_clone.popdown();
- }));
- 
- vbox.append(&play_btn);
- } else {
- // Directory context menu
- let add_all_btn = Button::builder()
- .label("Add All to Library")
- .css_classes(vec!["flat".to_string(), "context-btn".to_string()])
- .build();
- 
- let state_clone = state.clone();
- let track_list_clone = track_list.clone();
- let track_rows_clone = track_rows.clone();
- let track_count_label_clone = track_count_label.clone();
- let path_clone = file_path.to_string();
- let popover_clone = popover.clone();
- 
- add_all_btn.connect_clicked(glib::clone!(@strong state_clone, @strong track_list_clone, @strong track_rows_clone, @strong track_count_label_clone, @strong path_clone, @strong popover_clone => move |_| {
- let new_tracks = scan_directory(&path_clone);
- let mut s = state_clone.lock().unwrap();
- 
- for track in &new_tracks {
- s.tracks.push(track.clone());
- let row = create_track_row(track);
- track_list_clone.append(&row);
- track_rows_clone.lock().unwrap().push(row);
- }
- 
- let count = s.tracks.len();
- drop(s);
- track_count_label_clone.set_label(&format!("{} tracks", count));
- popover_clone.popdown();
- }));
- 
- vbox.append(&add_all_btn);
- }
-
- popover.set_child(Some(&vbox));
- popover.set_parent(tree_view);
- popover.popup();
-}
-
-fn add_file_and_play(
- file_path: &str,
- state: Arc<Mutex<AppState>>,
- track_list: ListBox,
- track_rows: Arc<Mutex<Vec<ListBoxRow>>>,
- track_count_label: Label,
- pipeline: Arc<Mutex<Option<gstreamer::Pipeline>>>,
-) {
- // This would need all the UI components to play the track
- // For simplicity, just add to library
- let track = create_track_from_path(file_path);
- let mut s = state.lock().unwrap();
- s.tracks.push(track.clone());
- 
- let row = create_track_row(&track);
- track_list.append(&row);
- track_rows.lock().unwrap().push(row);
- 
- let count = s.tracks.len();
- drop(s);
- track_count_label.set_label(&format!("{} tracks", count));
-}
-
 fn create_queue_row(track: &Track, index: usize, queue_list: ListBox, state: Arc<Mutex<AppState>>) -> ListBoxRow {
  let hbox = Box::builder()
  .orientation(Orientation::Horizontal)
@@ -2102,93 +1758,8 @@ fn highlight_current_track(track_rows: &Arc<Mutex<Vec<ListBoxRow>>>, current_ind
  }
 }
 
-fn populate_file_browser(store: &TreeStore) {
- let music_path = glib::home_dir().join(MUSIC_DIR);
- 
- if !music_path.exists() {
- // Create empty root
- let iter = store.append(None);
- store.set_value(&iter, 0, &glib::Value::from(&format!("{} (not found)", MUSIC_DIR)));
- store.set_value(&iter, 1, &glib::Value::from(""));
- store.set_value(&iter, 2, &glib::Value::from(&false));
- store.set_value(&iter, 3, &glib::Value::from(""));
- return;
- }
-
- populate_directory(store, &music_path, None);
-}
-
-fn populate_directory(store: &TreeStore, dir: &std::path::Path, parent: Option<&TreeIter>) {
- if let Ok(entries) = std::fs::read_dir(dir) {
- let mut entries: Vec<_> = entries.filter_map(|e| e.ok()).collect();
- entries.sort_by(|a, b| {
- let a_is_dir = a.path().is_dir();
- let b_is_dir = b.path().is_dir();
- if a_is_dir && !b_is_dir { std::cmp::Ordering::Less }
- else if !a_is_dir && b_is_dir { std::cmp::Ordering::Greater }
- else { a.file_name().cmp(&b.file_name()) }
- });
-
- for entry in entries {
- let path = entry.path();
- let name = entry.file_name().to_string_lossy().to_string();
- let is_file = path.is_file();
- 
- let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
- let is_audio = ["mp3", "flac", "ogg", "wav", "m4a", "aac", "webm"].contains(&ext);
- 
- if is_file && !is_audio {
- continue; // Skip non-audio files
- }
-
- // Count audio files in directory
- let file_count = if !is_file {
- count_audio_files(&path)
- } else {
- 0
- };
-
- let iter = store.append(parent);
- store.set_value(&iter, 0, &glib::Value::from(&name));
- store.set_value(&iter, 1, &glib::Value::from(&path.display().to_string()));
- store.set_value(&iter, 2, &glib::Value::from(&is_file));
- 
- let count_str = if !is_file && file_count > 0 {
- format!("({})", file_count)
- } else {
- String::new()
- };
- store.set_value(&iter, 3, &glib::Value::from(&count_str));
-
- if !is_file {
- populate_directory(store, &path, Some(&iter));
- }
- }
- }
-}
-
-fn count_audio_files(dir: &std::path::Path) -> usize {
- if !dir.is_dir() {
- return 0;
- }
-
- let mut count = 0;
- if let Ok(entries) = std::fs::read_dir(dir) {
- for entry in entries.filter_map(|e| e.ok()) {
- let path = entry.path();
- if path.is_file() {
- let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
- if ["mp3", "flac", "ogg", "wav", "m4a", "aac", "webm"].contains(&ext) {
- count += 1;
- }
- }
- }
- }
- count
-}
-
 fn create_track_from_path(path: &str) -> Track {
- let path_buf = PathBuf::from(path);
+ let path_buf = std::path::PathBuf::from(path);
  let filename = path_buf
  .file_stem()
  .and_then(|n| n.to_str())
@@ -2207,39 +1778,6 @@ fn create_track_from_path(path: &str) -> Track {
  artist,
  duration_secs: None, // Could use lofty to extract
  }
-}
-
-fn scan_directory(dir: &str) -> Vec<Track> {
- let mut tracks = Vec::new();
- let dir_path = std::path::Path::new(dir);
-
- for entry in WalkDir::new(dir_path).into_iter().filter_map(|e| e.ok()) {
- let path = entry.path();
- let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
-
- if ["mp3", "flac", "ogg", "wav", "m4a", "aac", "webm"].contains(&ext) {
- let filename = path.file_stem().and_then(|n| n.to_str()).unwrap_or("Unknown");
- let (artist, title) = if filename.contains(" - ") {
- let parts: Vec<&str> = filename.splitn(2, " - ").collect();
- (parts[0].to_string(), parts[1].to_string())
- } else {
- ("Unknown".to_string(), filename.to_string())
- };
-
- tracks.push(Track {
- path: path.display().to_string(),
- title,
- artist,
- duration_secs: None,
- });
- }
- }
-
- tracks.sort_by(|a, b| {
- a.artist.to_lowercase().cmp(&b.artist.to_lowercase())
- .then(a.title.to_lowercase().cmp(&b.title.to_lowercase()))
- });
- tracks
 }
 
 fn play_track(
@@ -2974,57 +2512,54 @@ fn draw_spectrum(cr: &cairo::Context, data: &[f64], peaks: &[f64], w: f64, h: f6
 }
 
 fn create_track_row(track: &Track) -> ListBoxRow {
- let hbox = Box::builder()
- .orientation(Orientation::Horizontal)
- .spacing(8)
- .margin_top(6)
- .margin_bottom(6)
- .margin_start(8)
- .margin_end(8)
- .build();
+    let hbox = Box::builder()
+        .orientation(Orientation::Horizontal)
+        .spacing(8)
+        .margin_top(4)
+        .margin_bottom(4)
+        .margin_start(8)
+        .margin_end(8)
+        .build();
 
- // Artist
- let artist = Label::builder()
- .label(&track.artist)
- .halign(gtk4::Align::Start)
- .ellipsize(gtk4::pango::EllipsizeMode::End)
- .hexpand(true)
- .css_classes(vec!["track-row-artist".to_string()])
- .build();
+    // Left side: title on top, artist below
+    let vbox = Box::builder()
+        .orientation(Orientation::Vertical)
+        .spacing(2)
+        .hexpand(true)
+        .build();
 
- // Title
- let title = Label::builder()
- .label(&track.title)
- .halign(gtk4::Align::Start)
- .ellipsize(gtk4::pango::EllipsizeMode::End)
- .hexpand(true)
- .css_classes(vec!["track-row-title".to_string()])
- .build();
+    let title = Label::builder()
+        .label(&track.title)
+        .halign(gtk4::Align::Start)
+        .ellipsize(gtk4::pango::EllipsizeMode::End)
+        .css_classes(vec!["track-row-title".to_string()])
+        .build();
 
- // Duration
- let duration = Label::builder()
- .label(track.duration_secs.map(|s| format!("{}:{:02}", s / 60, s % 60)).unwrap_or_default())
- .css_classes(vec!["dim-label".to_string()])
- .width_request(50)
- .halign(gtk4::Align::End)
- .build();
+    let artist = Label::builder()
+        .label(&track.artist)
+        .halign(gtk4::Align::Start)
+        .ellipsize(gtk4::pango::EllipsizeMode::End)
+        .css_classes(vec!["track-row-artist".to_string(), "dim-label".to_string()])
+        .build();
 
- // Add to queue button
- let add_btn = Button::builder()
- .icon_name("list-add-symbolic")
- .css_classes(vec!["flat".to_string(), "add-queue-btn".to_string()])
- .tooltip_text("Add to Queue")
- .build();
+    vbox.append(&title);
+    vbox.append(&artist);
 
- hbox.append(&artist);
- hbox.append(&title);
- hbox.append(&duration);
- hbox.append(&add_btn);
+    // Add to queue button
+    let add_btn = Button::builder()
+        .icon_name("list-add-symbolic")
+        .css_classes(vec!["flat".to_string(), "add-queue-btn".to_string()])
+        .tooltip_text("Add to Queue")
+        .valign(gtk4::Align::Center)
+        .build();
 
- ListBoxRow::builder()
- .child(&hbox)
- .css_classes(vec!["track-row".to_string()])
- .build()
+    hbox.append(&vbox);
+    hbox.append(&add_btn);
+
+    ListBoxRow::builder()
+        .child(&hbox)
+        .css_classes(vec!["track-row".to_string()])
+        .build()
 }
 
 fn scan_music_dir() -> Vec<Track> {
