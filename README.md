@@ -98,6 +98,7 @@ volta-wave-gtk ~/Music/Favorites
 | Solarized | Precision color scheme |
 | Cyberpunk | Neon pink and cyan |
 | Forest | Natural green tones |
+| Communist Red | Bold red and gold revolutionary aesthetic |
 
 ## Visualization Modes
 
@@ -122,6 +123,10 @@ volta-wave-gtk/
 ## License
 
 MIT
+
+## Support
+
+BTC: 1NV2myQZNXU1ahPXTyZJnGF7GfdC4SZCN2
 
 ## Related Projects
 
