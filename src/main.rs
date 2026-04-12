@@ -834,6 +834,63 @@ track_list.add_controller(track_list_context);
  }
  }));
 
+ // Queue list row activation - play the selected queue item
+ let pipeline_clone = pipeline.clone();
+ let play_btn_clone = play_btn.clone();
+ let state_clone = state.clone();
+ let lyrics_prev_clone = lyrics_prev.clone();
+ let lyrics_current_clone = lyrics_current.clone();
+ let lyrics_next_clone = lyrics_next.clone();
+ let progress_clone = progress.clone();
+ let time_current_clone = time_current.clone();
+ let time_total_clone = time_total.clone();
+ let track_title_clone = track_title.clone();
+ let track_artist_clone = track_artist.clone();
+ let album_art_clone = album_art.clone();
+
+ queue_list.connect_row_activated(glib::clone!(
+ @strong state_clone,
+ @strong pipeline_clone,
+ @strong play_btn_clone,
+ @strong lyrics_prev_clone,
+ @strong lyrics_current_clone,
+ @strong lyrics_next_clone,
+ @strong progress_clone,
+ @strong time_current_clone,
+ @strong time_total_clone,
+ @strong track_title_clone,
+ @strong track_artist_clone,
+ @strong album_art_clone => move |_, row| {
+ let row_index = row.index() as usize;
+ let state = state_clone.lock().unwrap();
+ 
+ // Get the track index from the queue
+ if let Some(&track_idx) = state.queue.iter().nth(row_index) {
+ if let Some(track) = state.tracks.get(track_idx) {
+ let track = track.clone();
+ drop(state);
+ 
+ state_clone.lock().unwrap().current_index = Some(track_idx);
+ 
+ play_track(
+ &track,
+ pipeline_clone.clone(),
+ play_btn_clone.clone(),
+ lyrics_prev_clone.clone(),
+ lyrics_current_clone.clone(),
+ lyrics_next_clone.clone(),
+ progress_clone.clone(),
+ time_current_clone.clone(),
+ time_total_clone.clone(),
+ track_title_clone.clone(),
+ track_artist_clone.clone(),
+ album_art_clone.clone(),
+ state_clone.clone(),
+ );
+ }
+ }
+ }));
+
  // Play/pause button
  let pipeline_clone = pipeline.clone();
  let play_btn_clone = play_btn.clone();
