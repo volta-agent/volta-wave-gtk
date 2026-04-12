@@ -29,6 +29,7 @@ A native GTK4 music player with audio visualizations, built with Rust. Part of t
 - **Playlist Save/Load**: Save and load playlists to JSON files
 - **Search**: Filter tracks by title or artist
 - **Context Menus**: Right-click tracks for quick actions
+- **Beat-Reactive Mode**: Auto-switch visualizations on detected beats (F8)
 
 ## Keyboard Shortcuts
 
@@ -41,6 +42,7 @@ A native GTK4 music player with audio visualizations, built with Rust. Part of t
 | D | Toggle Mini/Full view |
 | V | Cycle visualization modes |
 | T | Cycle color themes |
+| F8 | Toggle beat-reactive mode |
 | Up Arrow | Volume Up |
 | Down Arrow | Volume Down |
 | M | Mute/Unmute |
@@ -70,6 +72,15 @@ A native GTK4 music player with audio visualizations, built with Rust. Part of t
 - **Stars**: Twinkling starfield effect
 - **Mirror**: Mirrored waveform display
 - **Spectrum**: Full spectrum analyzer
+
+## Beat-Reactive Mode
+
+Press **F8** to enable beat-reactive visualization mode. When enabled, the player analyzes bass frequencies in real-time and automatically switches visualization modes when a beat is detected. This creates a dynamic, music-synced visual experience inspired by classic visualizers like MilkDrop.
+
+The beat detection algorithm:
+- Monitors bass energy (low frequency bins)
+- Uses dynamic thresholding based on variance
+- Requires minimum 200ms between beat triggers to prevent rapid switching
 
 ## Installation
 

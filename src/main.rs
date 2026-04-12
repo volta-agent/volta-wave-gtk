@@ -72,6 +72,11 @@ struct AppState {
  view_mode: ViewMode,
  window_x: i32,
  window_y: i32,
+ // Beat detection state
+ beat_mode: bool,
+ bass_history: Vec<f64>,
+ last_beat_time: std::time::Instant,
+ beat_threshold: f64,
 }
 
 fn main() -> Result<()> {
@@ -108,6 +113,11 @@ fn build_ui(app: &Application) {
  view_mode: ViewMode::Full,
  window_x: 0,
  window_y: 0,
+ // Beat detection initialization
+ beat_mode: false,
+ bass_history: vec![0.0; 32],
+ last_beat_time: std::time::Instant::now(),
+ beat_threshold: 0.35,
  }));
 
  let tracks = scan_music_dir();
@@ -1402,7 +1412,7 @@ track_list.add_controller(track_list_context);
  viz_area_clone.queue_draw();
  Propagation::Stop
  }
- gtk4::gdk::Key::t => {
+gtk4::gdk::Key::t => {
  // Cycle theme
  let mut s = state_clone.lock().unwrap();
  s.current_theme = (s.current_theme + 1) % THEMES.len();
@@ -1413,17 +1423,28 @@ track_list.add_controller(track_list_context);
  window_clone.queue_draw();
  Propagation::Stop
  }
+ gtk4::gdk::Key::F8 => {
+ // Toggle beat-reactive visualization mode
+ let mut s = state_clone.lock().unwrap();
+ s.beat_mode = !s.beat_mode;
+ let mode_status = if s.beat_mode { "ON" } else { "OFF" };
+ println!("Beat-reactive mode: {}", mode_status);
+ drop(s);
+ viz_area_clone.queue_draw();
+ Propagation::Stop
+ }
  _ => Propagation::Proceed
  }
- }));
+}));
 
- window.add_controller(key_controller);
+window.add_controller(key_controller);
 
  // ========== TIMERS ==========
  
- // Animation timer
+ // Animation timer with beat detection
  let viz_area_clone = viz_area.clone();
- glib::timeout_add_local(std::time::Duration::from_millis(33), glib::clone!(@strong state, @strong viz_area_clone => move || {
+ let viz_mode_btn_clone = viz_mode_btn.clone();
+ glib::timeout_add_local(std::time::Duration::from_millis(33), glib::clone!(@strong state, @strong viz_area_clone, @strong viz_mode_btn_clone => move || {
  let mut s = state.lock().unwrap();
  
  if s.is_playing {
@@ -1440,15 +1461,62 @@ track_list.add_controller(track_list_context);
  s.peak_data[i] = s.peak_data[i] * 0.95;
  }
  }
+ 
+ // Beat detection - analyze bass frequencies (first 8 bins)
+ if s.beat_mode {
+ // Calculate bass energy (average of first 8 frequency bins)
+ let bass_energy: f64 = s.spectrum_data.iter().take(8).sum::<f64>() / 8.0;
+ 
+ // Update bass history (rolling buffer)
+ s.bass_history.remove(0);
+ s.bass_history.push(bass_energy);
+ 
+ // Calculate average and variance
+ let avg_bass: f64 = s.bass_history.iter().sum::<f64>() / s.bass_history.len() as f64;
+ let variance: f64 = s.bass_history.iter()
+ .map(|&x| (x - avg_bass).powi(2))
+ .sum::<f64>() / s.bass_history.len() as f64;
+ 
+ // Dynamic threshold based on variance
+ let dynamic_threshold = s.beat_threshold + variance.sqrt() * 0.5;
+ 
+ // Detect beat: bass energy significantly above average
+ // Minimum 200ms between beats to avoid rapid switching
+ let time_since_last = s.last_beat_time.elapsed().as_millis();
+ if bass_energy > avg_bass + dynamic_threshold && time_since_last > 200 {
+ s.last_beat_time = std::time::Instant::now();
+ 
+ // Switch to next visualization mode on beat
+ s.viz_mode = (s.viz_mode + 1) % 6;
+ let mode_name = match s.viz_mode {
+ 0 => "Bars",
+ 1 => "Wave",
+ 2 => "Circles",
+ 3 => "Stars",
+ 4 => "Mirror",
+ 5 => "Spectrum",
+ _ => "Bars",
+ };
+ drop(s);
+ viz_mode_btn_clone.set_label(mode_name);
+ viz_area_clone.queue_draw();
+ } else {
+ drop(s);
+ viz_area_clone.queue_draw();
+ }
+ } else {
+ drop(s);
+ viz_area_clone.queue_draw();
+ }
  } else {
  for i in 0..64 {
  s.spectrum_data[i] *= 0.9;
  s.peak_data[i] *= 0.95;
  }
- }
- 
  drop(s);
  viz_area_clone.queue_draw();
+ }
+ 
  glib::ControlFlow::Continue
  }));
 
