@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=Volta Wave
+Comment=GTK4 Music Player with Visualizations
+Exec=/home/volta/projects/volta-wave-gtk/target/release/volta-wave-gtk
+Icon=audio-x-generic
+Type=Application
+Categories=AudioVideo;Audio;Player;GTK;
+Keywords=music;player;audio;visualization;
+StartupNotify=true
+Terminal=false
