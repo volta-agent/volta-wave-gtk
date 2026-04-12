@@ -279,38 +279,14 @@ fn build_ui(app: &Application) {
  playlist_box.append(&load_playlist_btn);
 
  // ========== LIBRARY VIEW ==========
- // Track list header
- let track_header = Box::builder()
- .orientation(Orientation::Horizontal)
- .spacing(8)
+ // Track list header - simple header matching vertical layout
+ let track_header = Label::builder()
+ .label("Library")
+ .css_classes(vec!["header-label".to_string()])
+ .halign(gtk4::Align::Start)
  .margin_bottom(4)
- .css_classes(vec!["track-header".to_string()])
+ .margin_start(8)
  .build();
-
- let header_artist = Label::builder()
- .label("Artist")
- .css_classes(vec!["header-label".to_string()])
- .hexpand(true)
- .halign(gtk4::Align::Start)
- .build();
-
- let header_title = Label::builder()
- .label("Title")
- .css_classes(vec!["header-label".to_string()])
- .hexpand(true)
- .halign(gtk4::Align::Start)
- .build();
-
- let header_duration = Label::builder()
- .label("Duration")
- .css_classes(vec!["header-label".to_string()])
- .width_request(60)
- .halign(gtk4::Align::End)
- .build();
-
- track_header.append(&header_artist);
- track_header.append(&header_title);
- track_header.append(&header_duration);
 
  // Track list
  let track_scrolled = gtk4::ScrolledWindow::builder()
@@ -324,23 +300,6 @@ fn build_ui(app: &Application) {
  .css_classes(vec!["navigation-sidebar".to_string(), "track-list".to_string()])
  .selection_mode(gtk4::SelectionMode::Single)
  .build();
-
- let track_rows: Arc<Mutex<Vec<ListBoxRow>>> = Arc::new(Mutex::new(Vec::new()));
-
- for (idx, track) in tracks.iter().enumerate() {
- let (row, add_btn) = create_track_row(track);
- 
- // Connect add to queue button
- let state_clone = state.clone();
- let idx = idx;
- add_btn.connect_clicked(glib::clone!(@strong state_clone => move |_| {
- let mut s = state_clone.lock().unwrap();
- s.queue.push_back(idx);
- }));
-
- track_list.append(&row);
- track_rows.lock().unwrap().push(row);
- }
 
  track_scrolled.set_child(Some(&track_list));
 
@@ -375,6 +334,35 @@ fn build_ui(app: &Application) {
  .build();
 
  queue_controls.append(&clear_queue_btn);
+
+ // ========== NOW POPULATE TRACKS WITH QUEUE ACCESS ==========
+ // We need queue_list and queue_count_label to exist first, so we defer track population
+ let track_rows: Arc<Mutex<Vec<ListBoxRow>>> = Arc::new(Mutex::new(Vec::new()));
+
+ for (idx, track) in tracks.iter().enumerate() {
+ let (row, add_btn) = create_track_row(track);
+
+ // Connect add to queue button - now with queue UI update
+ let state_clone = state.clone();
+ let queue_list_clone = queue_list.clone();
+ let queue_count_label_clone = queue_count_label.clone();
+ let track_clone = track.clone();
+ add_btn.connect_clicked(glib::clone!(@strong state_clone, @strong queue_list_clone, @strong queue_count_label_clone, @strong track_clone => move |_| {
+ let mut s = state_clone.lock().unwrap();
+ s.queue.push_back(idx);
+ 
+ // Add to queue UI
+ let queue_row = create_queue_row(&track_clone, idx, queue_list_clone.clone(), state_clone.clone());
+ queue_list_clone.append(&queue_row);
+ 
+ let queue_len = s.queue.len();
+ drop(s);
+ queue_count_label_clone.set_label(&format!("Queue: {}", queue_len));
+ }));
+
+ track_list.append(&row);
+ track_rows.lock().unwrap().push(row);
+ }
 
  sidebar.append(&header_box);
  sidebar.append(&tab_box);
