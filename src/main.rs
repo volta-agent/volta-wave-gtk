@@ -327,8 +327,17 @@ fn build_ui(app: &Application) {
 
  let track_rows: Arc<Mutex<Vec<ListBoxRow>>> = Arc::new(Mutex::new(Vec::new()));
 
- for track in &tracks {
- let row = create_track_row(track);
+ for (idx, track) in tracks.iter().enumerate() {
+ let (row, add_btn) = create_track_row(track);
+ 
+ // Connect add to queue button
+ let state_clone = state.clone();
+ let idx = idx;
+ add_btn.connect_clicked(glib::clone!(@strong state_clone => move |_| {
+ let mut s = state_clone.lock().unwrap();
+ s.queue.push_back(idx);
+ }));
+
  track_list.append(&row);
  track_rows.lock().unwrap().push(row);
  }
@@ -1195,7 +1204,7 @@ track_list.add_controller(track_list_context);
  
  // Add loaded tracks
  for track in &loaded_tracks {
- let row = create_track_row(track);
+ let (row, _add_btn) = create_track_row(track);
  track_list_clone.append(&row);
  rows.push(row);
  }
@@ -2543,55 +2552,57 @@ fn draw_spectrum(cr: &cairo::Context, data: &[f64], peaks: &[f64], w: f64, h: f6
  }
 }
 
-fn create_track_row(track: &Track) -> ListBoxRow {
-    let hbox = Box::builder()
-        .orientation(Orientation::Horizontal)
-        .spacing(8)
-        .margin_top(4)
-        .margin_bottom(4)
-        .margin_start(8)
-        .margin_end(8)
-        .build();
+fn create_track_row(track: &Track) -> (ListBoxRow, Button) {
+ let hbox = Box::builder()
+ .orientation(Orientation::Horizontal)
+ .spacing(8)
+ .margin_top(4)
+ .margin_bottom(4)
+ .margin_start(8)
+ .margin_end(8)
+ .build();
 
-    // Left side: title on top, artist below
-    let vbox = Box::builder()
-        .orientation(Orientation::Vertical)
-        .spacing(2)
-        .hexpand(true)
-        .build();
+ // Left side: title on top, artist below
+ let vbox = Box::builder()
+ .orientation(Orientation::Vertical)
+ .spacing(2)
+ .hexpand(true)
+ .build();
 
-    let title = Label::builder()
-        .label(&track.title)
-        .halign(gtk4::Align::Start)
-        .ellipsize(gtk4::pango::EllipsizeMode::End)
-        .css_classes(vec!["track-row-title".to_string()])
-        .build();
+ let title = Label::builder()
+ .label(&track.title)
+ .halign(gtk4::Align::Start)
+ .ellipsize(gtk4::pango::EllipsizeMode::End)
+ .css_classes(vec!["track-row-title".to_string()])
+ .build();
 
-    let artist = Label::builder()
-        .label(&track.artist)
-        .halign(gtk4::Align::Start)
-        .ellipsize(gtk4::pango::EllipsizeMode::End)
-        .css_classes(vec!["track-row-artist".to_string(), "dim-label".to_string()])
-        .build();
+ let artist = Label::builder()
+ .label(&track.artist)
+ .halign(gtk4::Align::Start)
+ .ellipsize(gtk4::pango::EllipsizeMode::End)
+ .css_classes(vec!["track-row-artist".to_string(), "dim-label".to_string()])
+ .build();
 
-    vbox.append(&title);
-    vbox.append(&artist);
+ vbox.append(&title);
+ vbox.append(&artist);
 
-    // Add to queue button
-    let add_btn = Button::builder()
-        .icon_name("list-add-symbolic")
-        .css_classes(vec!["flat".to_string(), "add-queue-btn".to_string()])
-        .tooltip_text("Add to Queue")
-        .valign(gtk4::Align::Center)
-        .build();
+ // Add to queue button
+ let add_btn = Button::builder()
+ .icon_name("list-add-symbolic")
+ .css_classes(vec!["flat".to_string(), "add-queue-btn".to_string()])
+ .tooltip_text("Add to Queue")
+ .valign(gtk4::Align::Center)
+ .build();
 
-    hbox.append(&vbox);
-    hbox.append(&add_btn);
+ hbox.append(&vbox);
+ hbox.append(&add_btn);
 
-    ListBoxRow::builder()
-        .child(&hbox)
-        .css_classes(vec!["track-row".to_string()])
-        .build()
+ let row = ListBoxRow::builder()
+ .child(&hbox)
+ .css_classes(vec!["track-row".to_string()])
+ .build();
+
+ (row, add_btn)
 }
 
 fn scan_music_dir() -> Vec<Track> {
