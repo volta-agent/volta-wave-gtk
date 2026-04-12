@@ -5,38 +5,23 @@ A native GTK4 music player with audio visualizations, built with Rust. Part of t
 ## Features
 
 - **Audio Playback**: Play MP3, FLAC, OGG, WAV, M4A, AAC, and WebM files
+- **Album Art**: Extracts and displays embedded album art from audio files
 - **6 Visualization Modes**: Bars, Wave, Circles, Stars, Mirror, Spectrum
 - **8 Color Themes**: Tokyo Night, Gruvbox, Dracula, Nord, Catppuccin, Solarized, Cyberpunk, Forest
 - **Shuffle & Repeat**: Randomize playback or repeat single/all tracks
 - **Lyrics Support**: Automatic lyrics fetching from LRCLIB
+- **Playlist Management**: Save and load playlists to JSON files
 - **Keyboard Shortcuts**: Space (play/pause), Left/Right arrows (seek +/-5s), A/D (seek)
 - **Search**: Filter tracks by title or artist
 - **Queue Management**: View and manage play queue
 
 ## Screenshots
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│  Volta Wave                    [Theme ▼]                        │
-├───────────────┬─────────────────────────────────────────────────┤
-│ [Library][Queue]                                                │
-│ ┌───────────┐ │  ┌────────────────────────────────────────────┐ │
-│ │ Search... │ │  │                                            │ │
-│ └───────────┘ │  │        ████  ████████  ████████            │ │
-│  42 tracks    │  │      ██████  ██████████  ████████          │ │
-│               │  │     ███████  █████████████  ████████       │ │
-│ ┌───────────┐ │  │    ████████  ██████████████  ██████████    │ │
-│ │ Artist    │ │  │   █████████  ████████████████  ████████████│ │
-│ │  Title    │ │  │                                            │ │
-│ │ Artist2   │ │  └────────────────────────────────────────────┘ │
-│ │  Title2   │ │                                                │
-│ │ ...       │ │  ◀ ◀    ▶    ▶ ▶                               │
-│ └───────────┘ │                                                │
-│               │  0:00 ━━━━━━━━━━━━━━━━━━━━━ 4:32    🔊 ────    │
-│               │                                                │
-│               │  Tokyo Night                         Bars      │
-└───────────────┴─────────────────────────────────────────────────┘
-```
+![Main Interface](screenshot1.png)
+*Main player interface with visualization and library*
+
+![Playback with Album Art](screenshot2.png)
+*Playing a track with album art display*
 
 ## Installation
 
@@ -48,102 +33,98 @@ A native GTK4 music player with audio visualizations, built with Rust. Part of t
 
 ```bash
 # Ubuntu/Debian
-sudo apt install libgtk-4-dev libgstreamer1.0-dev gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-plugins-bad
-
-# Arch Linux
-sudo pacman -S gtk4 gstreamer gst-plugins-base gst-plugins-good gst-plugins-bad
+sudo apt install libgtk-4-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-libav
 
 # Fedora
-sudo dnf install gtk4-devel gstreamer1-devel gstreamer1-plugins-base-devel
+sudo dnf install gtk4-devel gstreamer1-devel gstreamer1-plugins-base-devel gstreamer1-plugins-good gstreamer1-plugins-bad-free gstreamer1-libav
+
+# Arch
+sudo pacman -S gtk4 gstreamer gst-plugins-base gst-plugins-good gst-plugins-bad gst-libav
 ```
 
 ### Build
 
 ```bash
-cd ~/projects/volta-wave-gtk
+git clone https://github.com/volta-agent/volta-wave-gtk.git
+cd volta-wave-gtk
 cargo build --release
 ```
 
-The binary will be at `target/release/volta-wave-gtk`.
-
-### Install Desktop Entry
+### Install
 
 ```bash
+sudo cp target/release/volta-wave-gtk /usr/local/bin/
 cp volta-wave-gtk.desktop ~/.local/share/applications/
-update-desktop-database ~/.local/share/applications/
 ```
 
 ## Usage
 
-### Running
-
 ```bash
-./target/release/volta-wave-gtk
+# Run with default music directory (~/Music)
+volta-wave-gtk
+
+# Specify a custom music directory
+volta-wave-gtk /path/to/music
+
+# Scan favorites folder
+volta-wave-gtk ~/Music/Favorites
 ```
 
-Or launch from your desktop menu under "Audio" category.
-
-### Music Library
-
-The player scans `~/Music` directory recursively for audio files. Files should be named:
-- `Artist - Title.mp3` (recommended)
-- Or just `Title.mp3` (shows as Unknown artist)
-
-### Keyboard Shortcuts
+## Keyboard Shortcuts
 
 | Key | Action |
 |-----|--------|
 | Space | Play/Pause |
-| Left Arrow / A | Seek backward 5 seconds |
-| Right Arrow / D | Seek forward 5 seconds |
+| Left Arrow | Seek -5 seconds |
+| Right Arrow | Seek +5 seconds |
+| A | Seek -10 seconds |
+| D | Seek +10 seconds |
+| Up Arrow | Volume Up |
+| Down Arrow | Volume Down |
+| M | Mute/Unmute |
+| S | Toggle Shuffle |
+| R | Cycle Repeat modes |
+| Escape | Clear search |
 
-### Lyrics
+## Themes
 
-Lyrics are fetched automatically from [LRCLIB](https://lrclib.net/) based on artist and title. You can also provide `.lrc` files alongside your music files:
+| Theme | Description |
+|-------|-------------|
+| Tokyo Night | Dark theme with purple accents |
+| Gruvbox | Warm retro colors |
+| Dracula | Purple-based dark theme |
+| Nord | Cold blue-gray theme |
+| Catppuccin | Soft pastel colors |
+| Solarized | Precision color scheme |
+| Cyberpunk | Neon pink and cyan |
+| Forest | Natural green tones |
+
+## Visualization Modes
+
+- **Bars**: Classic frequency bar visualization
+- **Wave**: Oscilloscope-style waveform
+- **Circles**: Circular frequency representation
+- **Stars**: Twinkling starfield effect
+- **Mirror**: Mirrored waveform display
+- **Spectrum**: Full spectrum analyzer
+
+## Project Structure
 
 ```
-Artist - Title.mp3
-Artist - Title.lrc   # Synced lyrics
+volta-wave-gtk/
+├── src/
+│   └── main.rs       # Main application code
+├── Cargo.toml        # Dependencies
+├── README.md         # This file
+└── volta-wave-gtk.desktop  # Desktop entry
 ```
-
-## Configuration
-
-- **Music Directory**: `~/Music` (edit `MUSIC_DIR` constant in `main.rs` to change)
-- **Volume**: Persisted during session, defaults to 75%
-
-## Dependencies
-
-- **gtk4**: GUI toolkit
-- **gstreamer**: Audio playback pipeline
-- **glib**: Main event loop and utilities
-- **cairo**: Visualization rendering
-- **serde**: JSON parsing for lyrics API
-- **reqwest**: HTTP client for lyrics fetching
-- **walkdir**: Recursive directory scanning
-- **regex**: LRC file parsing
-- **rand**: Shuffle functionality
-
-## Architecture
-
-```
-main.rs
-├── UI Construction (build_ui)
-│   ├── Sidebar (track list, search, queue)
-│   ├── Visualization (DrawingArea)
-│   ├── Controls (play/pause, next, prev)
-│   └── Status Bar
-├── Playback (GStreamer playbin)
-├── Visualization (6 modes)
-├── Theme System (8 themes)
-└── Lyrics Fetching (async)
-```
-
-## Related Projects
-
-- **volta-wave-gui**: Web-based music player (port 3006)
-- **volta-radio**: Internet radio player (port 3005)
-- **volta-journal**: Journal API and web app
 
 ## License
 
-MIT License - Part of the Volta Agent project.
+MIT
+
+## Related Projects
+
+- [volta-wave-gui](https://github.com/volta-agent/volta-wave-gui) - Web-based version
+- [volta-zen](https://github.com/volta-agent/volta-zen) - Ambient soundscape generator
+- [volta-radio](https://github.com/volta-agent/volta-radio) - Internet radio player
