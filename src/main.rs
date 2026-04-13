@@ -68,7 +68,7 @@ struct AppState {
  repeat_mode: RepeatMode,
  queue: VecDeque<usize>,
  volume: f64,
- seeking: bool,
+ _seeking: bool, // Reserved for future seek indicator
  view_mode: ViewMode,
  window_x: i32,
  window_y: i32,
@@ -109,7 +109,7 @@ fn build_ui(app: &Application) {
  repeat_mode: RepeatMode::Off,
  queue: VecDeque::new(),
  volume: 0.75,
- seeking: false,
+ _seeking: false,
  view_mode: ViewMode::Full,
  window_x: 0,
  window_y: 0,
@@ -730,7 +730,7 @@ fn build_ui(app: &Application) {
  @strong pipeline_for_context,
  @strong track_rows_for_context,
  @strong queue_list_for_context,
- @strong queue_count_label_for_context => move |_, _, x, y| {
+ @strong queue_count_label_for_context => move |_, _, x, _y| {
  if let Some(row) = track_list_for_context.row_at_y(x as i32) {
  let index = row.index() as usize;
  let state = state_for_context.lock().unwrap();
@@ -1170,7 +1170,7 @@ track_list.add_controller(track_list_context);
  let content = dialog.content_area();
  content.append(&entry);
  
- let tracks = tracks_for_save.clone();
+ let _tracks = tracks_for_save.clone(); // kept for future use
  let state = state_for_save.clone();
  dialog.connect_response(glib::clone!(@strong entry => move |dialog, response| {
  if response == gtk4::ResponseType::Ok {
@@ -1673,10 +1673,10 @@ window.add_controller(key_controller);
 fn show_track_context_menu(
  row: &ListBoxRow,
  index: usize,
- is_current: bool,
- track: Track,
- state: Arc<Mutex<AppState>>,
- pipeline: Arc<Mutex<Option<gstreamer::Pipeline>>>,
+is_current: bool,
+    track: Track,
+    state: Arc<Mutex<AppState>>,
+    _pipeline: Arc<Mutex<Option<gstreamer::Pipeline>>>,
  track_rows: Arc<Mutex<Vec<ListBoxRow>>>,
  queue_list: ListBox,
  queue_count_label: Label,
@@ -1740,8 +1740,8 @@ fn show_track_context_menu(
  let new_idx = s.tracks.len();
  s.tracks.push(track_clone.clone());
  
- // Add to front of queue
- if let Some(front) = s.queue.front().copied() {
+// Add to front of queue
+    if let Some(_front) = s.queue.front().copied() {
  s.queue.push_front(new_idx);
  } else {
  s.queue.push_front(new_idx);
@@ -1912,6 +1912,7 @@ fn highlight_current_track(track_rows: &Arc<Mutex<Vec<ListBoxRow>>>, current_ind
  }
 }
 
+#[allow(dead_code)]
 fn create_track_from_path(path: &str) -> Track {
  let path_buf = std::path::PathBuf::from(path);
  let filename = path_buf
@@ -2069,7 +2070,7 @@ fn extract_album_art(path: &str) -> Option<gtk4::gdk::Texture> {
 }
 
 fn apply_theme(theme_index: usize) {
- let (name, bg, fg, accent, dim, sidebar_bg, viz_accent, _grad_start, _grad_end) = THEMES[theme_index];
+ let (_name, bg, fg, accent, dim, sidebar_bg, viz_accent, _grad_start, _grad_end) = THEMES[theme_index];
  
 let css = format!(r#"
 * {{ -gtk-icon-transform: none; }}
@@ -2487,14 +2488,14 @@ fn draw_bars(cr: &cairo::Context, data: &[f64], peaks: &[f64], w: f64, h: f64, r
 
  cr.set_source_rgba(r, g, b, 0.8);
  cr.rectangle(x, h - bar_h, bar_width, bar_h);
- cr.fill();
+ let _ = cr.fill();
 
  if i < peaks.len() {
  let peak_h = peaks[i] * h * 0.85;
  if peak_h > bar_h + 5.0 {
  cr.set_source_rgba(r, g, b, 0.9);
  cr.rectangle(x, h - peak_h - 3.0, bar_width, 3.0);
- cr.fill();
+ let _ = cr.fill();
  }
  }
  }
@@ -2513,7 +2514,7 @@ fn draw_wave(cr: &cairo::Context, data: &[f64], w: f64, h: f64, r: f64, g: f64, 
 
  cr.set_source_rgba(r, g, b, 0.8);
  cr.set_line_width(3.0);
- cr.stroke();
+ let _ = cr.stroke();
 }
 
 fn draw_circles(cr: &cairo::Context, data: &[f64], w: f64, h: f64, r: f64, g: f64, b: f64) {
@@ -2529,7 +2530,7 @@ fn draw_circles(cr: &cairo::Context, data: &[f64], w: f64, h: f64, r: f64, g: f6
  cr.set_source_rgba(r, g, b, alpha);
  cr.set_line_width(2.0 + (10 - ring) as f64 * 0.3);
  cr.arc(cx, cy, radius, 0.0, std::f64::consts::PI * 2.0);
- cr.stroke();
+ let _ = cr.stroke();
  }
 
  for (i, &val) in data.iter().enumerate().take(48) {
@@ -2539,7 +2540,7 @@ fn draw_circles(cr: &cairo::Context, data: &[f64], w: f64, h: f64, r: f64, g: f6
 
  cr.set_source_rgba(r, g, b, 0.5 + val * 0.5);
  cr.arc(x, y, 2.0 + val * 4.0, 0.0, std::f64::consts::PI * 2.0);
- cr.fill();
+ let _ = cr.fill();
  }
 }
 
@@ -2555,12 +2556,12 @@ fn draw_stars(cr: &cairo::Context, data: &[f64], w: f64, h: f64, r: f64, g: f64,
  let size = 20.0 + center_val * 25.0 + glow as f64 * 12.0;
  cr.set_source_rgba(r, g, b, alpha);
  draw_star_shape(cr, cx, cy, size);
- cr.fill();
+ let _ = cr.fill();
  }
 
  cr.set_source_rgba(r, g, b, 1.0);
  draw_star_shape(cr, cx, cy, 15.0 + center_val * 15.0);
- cr.fill();
+ let _ = cr.fill();
 
  for (i, &val) in data.iter().enumerate().take(16).skip(1) {
  let time = std::time::SystemTime::now()
@@ -2573,7 +2574,7 @@ fn draw_stars(cr: &cairo::Context, data: &[f64], w: f64, h: f64, r: f64, g: f64,
 
  cr.set_source_rgba(r, g, b, 0.7 + val * 0.3);
  draw_star_shape(cr, x, y, size);
- cr.fill();
+ let _ = cr.fill();
  }
 }
 
@@ -2608,19 +2609,19 @@ fn draw_mirror(cr: &cairo::Context, data: &[f64], peaks: &[f64], w: f64, h: f64,
  // Top half
  cr.set_source_rgba(r, g, b, 0.8);
  cr.rectangle(x, h / 2.0 - bar_h, bar_width, bar_h);
- cr.fill();
+ let _ = cr.fill();
 
  // Bottom half (reflection)
  cr.set_source_rgba(r * 0.6, g * 0.6, b * 0.6, 0.5);
  cr.rectangle(x, h / 2.0, bar_width, bar_h * 0.7);
- cr.fill();
+ let _ = cr.fill();
 
  // Peak
  if i < peaks.len() {
  let peak_h = peaks[i] * h * 0.42;
  cr.set_source_rgba(r, g, b, 0.9);
  cr.rectangle(x, h / 2.0 - peak_h - 2.0, bar_width, 2.0);
- cr.fill();
+ let _ = cr.fill();
  }
  }
 }
@@ -2652,7 +2653,7 @@ fn draw_spectrum(cr: &cairo::Context, data: &[f64], peaks: &[f64], w: f64, h: f6
  let alpha = 0.5 + 0.5 * (s as f64 / segments as f64);
  cr.set_source_rgba(br, bg, bb, alpha);
  cr.rectangle(x, seg_y, bar_width, segment_h);
- cr.fill();
+ let _ = cr.fill();
  }
 
  // Peak
@@ -2660,7 +2661,7 @@ fn draw_spectrum(cr: &cairo::Context, data: &[f64], peaks: &[f64], w: f64, h: f6
  let peak_h = peaks[i] * h * 0.9;
  cr.set_source_rgba(r, g, b, 1.0);
  cr.rectangle(x, h - peak_h - 4.0, bar_width, 3.0);
- cr.fill();
+ let _ = cr.fill();
  }
  }
 }
